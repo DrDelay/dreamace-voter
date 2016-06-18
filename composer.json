@@ -1,0 +1,23 @@
+{
+    "name": "drdelay/dreamace-voter",
+    "description": "Automates the voting process on DreamACE",
+    "type": "application",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "DrDelay",
+            "email": "info@vi0lation.de"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "php": "^7.0",
+        "symfony/console": "^3.1",
+        "guzzlehttp/guzzle": "^6.2",
+        "fzaninotto/faker": "^1.6"
+    },
+    "autoload": {
+        "psr-4": { "DrDelay\\DreamAceVoter\\": "src/" }
+    },
+    "bin": ["dreamace-voter"]
+}

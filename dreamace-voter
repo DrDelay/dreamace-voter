@@ -1,0 +1,21 @@
+#!/usr/bin/env php
+<?php
+/**
+ * This file is part of drdelay/dreamace-voter.
+ *
+ * @author DrDelay <info@vi0lation.de>
+ */
+use DrDelay\DreamAceVoter\Console\Application;
+
+set_error_handler(function ($severity, $message, $file, $line) {
+    if (!(error_reporting() & $severity)) {
+        return;
+    }
+
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
+require __DIR__.'/vendor/autoload.php';
+
+$application = new Application();
+$application->run();
