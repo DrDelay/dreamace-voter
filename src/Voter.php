@@ -19,7 +19,7 @@ class Voter
     const DELAY_MIN = 2000;
     const DELAY_MAX = 5000;
     const ACC_PAGE = '/index.php?site=account';
-    const IPTABLES_COMMAND = 'iptables';
+    const IPTABLES_COMMAND = '/sbin/iptables';
     const IPTABLES_BLOCKMODE = 'REJECT';
 
     /** @var Client */
