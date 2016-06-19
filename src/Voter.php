@@ -13,12 +13,14 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class Voter
 {
-    const VERSION = '1.0.0';
+    const VERSION = '1.0.1';
     const DA_WEBSITE = 'http://dreamace.org';
 
     const DELAY_MIN = 2000;
     const DELAY_MAX = 5000;
     const ACC_PAGE = '/index.php?site=account';
+    const IPTABLES_COMMAND = 'iptables';
+    const IPTABLES_BLOCKMODE = 'REJECT';
 
     /** @var Client */
     protected $client;
@@ -32,6 +34,11 @@ class Voter
 
     /** @var bool */
     protected $fast = false;
+    /** @var int[]|null */
+    protected $close_ports;
+
+    /** @var array|null */
+    protected $closedRules;
 
     /**
      * Constructor.
@@ -53,7 +60,7 @@ class Voter
         $this->password = $password;
         $this->char_id = $char_id;
 
-        if (is_null($fake_agent)) {
+        if (!$fake_agent) {
             $fake_agent = FakerFactory::create()->userAgent;
         }
 
@@ -66,6 +73,8 @@ class Voter
             ],
             'debug' => $debug,
         ]);
+
+        $this->closedRules = array();
     }
 
     /**
@@ -80,6 +89,53 @@ class Voter
         $this->fast = $fast;
 
         return $this;
+    }
+
+    /**
+     * Set ports to close when voting.
+     *
+     * @param array $ports
+     *
+     * @return $this
+     */
+    public function setClose_ports(array $ports)
+    {
+        $this->close_ports = $ports;
+
+        return $this;
+    }
+
+    /**
+     * Close the ports.
+     *
+     * @param OutputInterface $output
+     */
+    protected function closePorts(OutputInterface $output)
+    {
+        if (is_array($this->close_ports)) {
+            foreach ($this->close_ports as $port) {
+                $rule = 'INPUT -p tcp --destination-port '.$port.' -j '.self::IPTABLES_BLOCKMODE;
+                $blockRule = self::IPTABLES_COMMAND.' -A '.$rule;
+                $this->closedRules[] = $rule;
+                Utils::verbosePrint($output, '<comment>'.$blockRule.'</comment>');
+                Utils::safeSilentExec($blockRule);
+            }
+        }
+    }
+
+    /**
+     * Remove the close-rules.
+     *
+     * @param OutputInterface $output
+     */
+    public function reopenPorts(OutputInterface $output)
+    {
+        foreach ($this->closedRules as $key => $rule) {
+            $unblockRule = self::IPTABLES_COMMAND.' -D '.$rule;
+            Utils::safeSilentExec($unblockRule);
+            Utils::verbosePrint($output, '<comment>'.$unblockRule.'</comment>');
+            unset($this->closedRules[$key]);
+        }
     }
 
     /**
@@ -123,12 +179,14 @@ class Voter
 
         $this->delay($output);
         Utils::verbosePrint($output, '<comment>Init voting</comment>');
+        $this->closePorts($output);
         $voteInitResponseBody = Utils::responseBody($this->client->post('/index.php?site=account&a=vote', array(
             'form_params' => [
                 'chose_character' => (string) $this->char_id,
                 'reset_submit' => '',
             ],
         )));
+        $this->reopenPorts($output);
 
         Utils::verbosePrint($output, '<comment>Extracting vote IDs / checking vote count</comment>');
         if (empty($voteInitResponseBody)) {

@@ -65,4 +65,19 @@ abstract class Utils
     {
         return strpos($haystack, $needle) !== false;
     }
+
+    /**
+     * Executes a command suppressing the output and checking the return code.
+     *
+     * @param string $command
+     *
+     * @throws \Exception
+     */
+    public static function safeSilentExec(string $command)
+    {
+        exec($command.' 2> /dev/null', $out, $code);
+        if ($code !== 0) {
+            throw new \Exception('Exec of "'.$command.'" failed, do you have the permissions?');
+        }
+    }
 }
