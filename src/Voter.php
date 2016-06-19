@@ -86,7 +86,7 @@ class Voter
     public function autovote(OutputInterface $output)
     {
         Utils::verbosePrint($output, '<comment>Logging in</comment>');
-        $this->client->post('/index.php?site=account', array(
+        $loginResponse = $this->client->post('/index.php?site=account', array(
             'form_params' => [
                 'login_id' => $this->username,
                 'login_pw' => $this->password,
@@ -105,11 +105,12 @@ class Voter
 
         Utils::verbosePrint($output, '<comment>Extracting vote IDs / checking vote count</comment>');
         if (empty($voteInitResponseBody)) {
-            Utils::debugPrint($output, $voteInitResponseBody);
             throw new VoterException('Vote init: Empty response');
         }
         if (strpos($voteInitResponseBody, 'You are logged in as') === false) {
-            Utils::debugPrint($output, $voteInitResponseBody);
+            if ($output->isDebug()) {
+                dump($loginResponse);
+            }
             throw new VoterException('Login failed: Incorrect login data / logged in to game ('.$this->username.':'.$this->password.')');
         }
         if (!preg_match_all('/vote_topsite\((\d+)\)/', $voteInitResponseBody, $matches,
