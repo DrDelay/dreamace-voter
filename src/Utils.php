@@ -42,6 +42,19 @@ abstract class Utils
     }
 
     /**
+     * Print a debug message.
+     *
+     * @param OutputInterface $output
+     * @param $message
+     */
+    public static function debugPrint(OutputInterface $output, $message)
+    {
+        if ($output->isDebug()) {
+            $output->writeln($message);
+        }
+    }
+
+    /**
      * Get a trimmed response body.
      *
      * @param ResponseInterface $response

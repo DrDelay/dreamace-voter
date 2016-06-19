@@ -105,14 +105,17 @@ class Voter
 
         Utils::verbosePrint($output, '<comment>Extracting vote IDs / checking vote count</comment>');
         if (empty($voteInitResponseBody)) {
+            Utils::debugPrint($output, $voteInitResponseBody);
             throw new VoterException('Vote init: Empty response');
         }
         if (strpos($voteInitResponseBody, 'You are logged in as') === false) {
-            throw new VoterException('Login failed: Incorrect login data / logged in to game');
+            Utils::debugPrint($output, $voteInitResponseBody);
+            throw new VoterException('Login failed: Incorrect login data / logged in to game ('.$this->username.':'.$this->password.')');
         }
         if (!preg_match_all('/vote_topsite\((\d+)\)/', $voteInitResponseBody, $matches,
                 PREG_PATTERN_ORDER) || empty($matches[1])
         ) {
+            Utils::debugPrint($output, $voteInitResponseBody);
             throw new VoterException('No possible votes found: On cooldown?');
         }
 
