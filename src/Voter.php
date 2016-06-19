@@ -104,10 +104,16 @@ class Voter
         )));
 
         Utils::verbosePrint($output, '<comment>Extracting vote IDs / checking vote count</comment>');
-        if (empty($voteInitResponseBody) || !preg_match_all('/vote_topsite\((\d+)\)/', $voteInitResponseBody, $matches,
+        if (empty($voteInitResponseBody)) {
+            throw new VoterException('Vote init: Empty response');
+        }
+        if (strpos($voteInitResponseBody, 'You are logged in as') === false) {
+            throw new VoterException('Login failed: Incorrect login data / logged in to game');
+        }
+        if (!preg_match_all('/vote_topsite\((\d+)\)/', $voteInitResponseBody, $matches,
                 PREG_PATTERN_ORDER) || empty($matches[1])
         ) {
-            throw new VoterException('No possible votes found: On cooldown / incorrect login data / logged in to game');
+            throw new VoterException('No possible votes found: On cooldown?');
         }
 
         $voteCount = sizeof($matches[1]);
