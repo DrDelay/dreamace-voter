@@ -48,7 +48,8 @@ EOF
             $input->getArgument('username'),
             $input->getArgument('password'),
             (int) $input->getArgument('char_id'),
-            $input->getArgument('user_agent')
+            $input->getArgument('user_agent'),
+            $output->isDebug()
         );
         $voter->setFast((bool) $input->getOption('fast'));
 

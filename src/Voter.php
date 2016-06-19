@@ -18,6 +18,7 @@ class Voter
 
     const DELAY_MIN = 2000;
     const DELAY_MAX = 5000;
+    const ACC_PAGE = '/index.php?site=account';
 
     /** @var Client */
     protected $client;
@@ -39,9 +40,15 @@ class Voter
      * @param string      $password
      * @param int         $char_id
      * @param string|null $fake_agent If none is specified one is obtained with Faker
+     * @param bool|false  $debug      Whether guzzle should be verbose
      */
-    public function __construct(string $username, string $password, int $char_id, string $fake_agent = null)
-    {
+    public function __construct(
+        string $username,
+        string $password,
+        int $char_id,
+        string $fake_agent = null,
+        bool $debug = false
+    ) {
         $this->username = $username;
         $this->password = $password;
         $this->char_id = $char_id;
@@ -57,6 +64,7 @@ class Voter
             'headers' => [
                 'User-Agent' => $fake_agent,
             ],
+            'debug' => $debug,
         ]);
     }
 
@@ -85,14 +93,32 @@ class Voter
      */
     public function autovote(OutputInterface $output)
     {
+        // Sending the login request without visiting the login page would be too obvious
+        $this->client->get(self::ACC_PAGE);
+        $this->delay($output);
+
         Utils::verbosePrint($output, '<comment>Logging in</comment>');
-        $loginResponse = $this->client->post('/index.php?site=account', array(
+        $this->client->post(self::ACC_PAGE, array(
             'form_params' => [
                 'login_id' => $this->username,
                 'login_pw' => $this->password,
                 'login_submit' => 'Log in',
             ],
         ));
+
+        $this->delay($output);
+        Utils::verbosePrint($output, '<comment>Check login</comment>');
+        $accountResponseBody = Utils::responseBody($this->client->get(self::ACC_PAGE));
+        if (empty($accountResponseBody)) {
+            throw new VoterException('Login check: Empty response');
+        }
+        if (strpos($accountResponseBody, 'You are logged in as') === false) {
+            if ($output->isDebug()) {
+                dump($accountResponseBody);
+            }
+            throw new VoterException('Login failed: Incorrect login data / logged in to game ('.$this->username.':'.$this->password.')');
+        }
+        Utils::verbosePrint($output, '<comment>Login seems to be good</comment>');
 
         $this->delay($output);
         Utils::verbosePrint($output, '<comment>Init voting</comment>');
@@ -107,16 +133,12 @@ class Voter
         if (empty($voteInitResponseBody)) {
             throw new VoterException('Vote init: Empty response');
         }
-        if (strpos($voteInitResponseBody, 'You are logged in as') === false) {
-            if ($output->isDebug()) {
-                dump($loginResponse);
-            }
-            throw new VoterException('Login failed: Incorrect login data / logged in to game ('.$this->username.':'.$this->password.')');
-        }
         if (!preg_match_all('/vote_topsite\((\d+)\)/', $voteInitResponseBody, $matches,
                 PREG_PATTERN_ORDER) || empty($matches[1])
         ) {
-            Utils::debugPrint($output, $voteInitResponseBody);
+            if ($output->isDebug()) {
+                dump($voteInitResponseBody);
+            }
             throw new VoterException('No possible votes found: On cooldown?');
         }
 
