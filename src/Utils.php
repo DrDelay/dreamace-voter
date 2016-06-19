@@ -52,4 +52,17 @@ abstract class Utils
     {
         return trim((string) $response->getBody());
     }
+
+    /**
+     * Checks whether $needle is in $haystack.
+     *
+     * @param string $haystack
+     * @param string $needle
+     *
+     * @return bool
+     */
+    public static function strContains(string $haystack, string $needle)
+    {
+        return strpos($haystack, $needle) !== false;
+    }
 }

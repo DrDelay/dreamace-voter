@@ -107,12 +107,13 @@ class Voter
         ));
 
         $this->delay($output);
+        // The webpage somehow also reloads once more after login, we want to mimic that behaviour
         Utils::verbosePrint($output, '<comment>Check login</comment>');
         $accountResponseBody = Utils::responseBody($this->client->get(self::ACC_PAGE));
         if (empty($accountResponseBody)) {
             throw new VoterException('Login check: Empty response');
         }
-        if (strpos($accountResponseBody, 'You are logged in as') === false) {
+        if (!Utils::strContains($accountResponseBody, 'You are logged in as')) {
             if ($output->isDebug()) {
                 dump($accountResponseBody);
             }
@@ -136,6 +137,9 @@ class Voter
         if (!preg_match_all('/vote_topsite\((\d+)\)/', $voteInitResponseBody, $matches,
                 PREG_PATTERN_ORDER) || empty($matches[1])
         ) {
+            if (Utils::strContains($voteInitResponseBody, 'You have been detected to be using a proxy')) {
+                throw new VoterException('Rejected because of proxy-check, see README.md');
+            }
             if ($output->isDebug()) {
                 dump($voteInitResponseBody);
             }
@@ -144,8 +148,8 @@ class Voter
 
         $voteCount = sizeof($matches[1]);
         $output->writeln('<info>Found '.$voteCount.' possible votes: '.implode(', ', $matches[1]).'</info>');
-        Utils::verbosePrint($output, '<comment>Starting voting process</comment>');
 
+        Utils::verbosePrint($output, '<comment>Starting voting process</comment>');
         foreach ($matches[1] as $match) {
             $this->delay($output);
             $voteResponse = Utils::responseBody($this->client->post('ajax/vote.php', array(
