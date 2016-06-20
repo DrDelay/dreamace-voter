@@ -15,7 +15,7 @@
 namespace DrDelay\DreamAceVoter;
 
 use Psr\Http\Message\ResponseInterface;
-use Symfony\Component\Console\Output\OutputInterface;
+use Psr\Log\LoggerInterface;
 
 abstract class Utils
 {
@@ -24,28 +24,15 @@ abstract class Utils
      *
      * @param int                  $min    Should be >= 0
      * @param int                  $max
-     * @param OutputInterface|null $output Writes an info message if set
+     * @param LoggerInterface|null $logger Writes an info message if set
      */
-    public static function randDelay(int $min, int $max, OutputInterface $output = null)
+    public static function randDelay(int $min, int $max, LoggerInterface $logger = null)
     {
         $delay = mt_rand($min, $max);
-        if ($output && $output->isVeryVerbose()) {
-            $output->writeln('<info>Delay for '.$delay.'ms</info>');
+        if ($logger) {
+            $logger->info('Delay for '.$delay.'ms');
         }
         usleep($delay * 1000);
-    }
-
-    /**
-     * Print a verbose message.
-     *
-     * @param OutputInterface $output
-     * @param $message
-     */
-    public static function verbosePrint(OutputInterface $output, $message)
-    {
-        if ($output->isVerbose()) {
-            $output->writeln($message);
-        }
     }
 
     /**
@@ -74,17 +61,21 @@ abstract class Utils
     }
 
     /**
-     * Executes a command suppressing the output and checking the return code.
+     * Executes a command checking the return code.
      *
-     * @param string $command
+     * @param string               $command
+     * @param LoggerInterface|null $logger  Writes an warning message if set
      *
      * @throws \Exception
      */
-    public static function safeSilentExec(string $command)
+    public static function safeExec(string $command, LoggerInterface $logger = null)
     {
-        exec($command.' 2> /dev/null', $out, $code);
+        if ($logger) {
+            $logger->warning('[exec] '.$command);
+        }
+        exec($command, $out, $code);
         if ($code !== 0) {
-            throw new \Exception('Exec of "'.$command.'" failed, do you have the permissions?');
+            throw new \Exception('Exec of "'.$command.'" failed');
         }
     }
 }

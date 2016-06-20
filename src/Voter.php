@@ -16,7 +16,7 @@ namespace DrDelay\DreamAceVoter;
 
 use Faker\Factory as FakerFactory;
 use GuzzleHttp\Client;
-use Symfony\Component\Console\Output\OutputInterface;
+use Psr\Log\LoggerInterface;
 
 class Voter
 {
@@ -28,6 +28,11 @@ class Voter
     const ACC_PAGE = '/index.php?site=account';
     const IPTABLES_COMMAND = '/sbin/iptables';
     const IPTABLES_BLOCKMODE = 'REJECT';
+
+    /** @var LoggerInterface */
+    protected $logger;
+    /** @var bool */
+    protected $debug;
 
     /** @var Client */
     protected $client;
@@ -41,28 +46,33 @@ class Voter
 
     /** @var bool */
     protected $fast = false;
-    /** @var int[]|null */
+    /** @var array|null */
     protected $close_ports;
 
-    /** @var array|null */
-    protected $closedRules;
+    /** @var array */
+    protected $closedRules = array();
 
     /**
      * Constructor.
      *
-     * @param string      $username
-     * @param string      $password
-     * @param int         $char_id
-     * @param string|null $fake_agent If none is specified one is obtained with Faker
-     * @param bool|false  $debug      Whether guzzle should be verbose
+     * @param string          $username
+     * @param string          $password
+     * @param int             $char_id
+     * @param string|null     $fake_agent If none is specified one is obtained via Faker
+     * @param LoggerInterface $logger
+     * @param bool|false      $debug
      */
     public function __construct(
         string $username,
         string $password,
         int $char_id,
         string $fake_agent = null,
+        LoggerInterface $logger,
         bool $debug = false
     ) {
+        $this->logger = $logger;
+        $this->debug = $debug;
+
         $this->username = $username;
         $this->password = $password;
         $this->char_id = $char_id;
@@ -78,10 +88,8 @@ class Voter
             'headers' => [
                 'User-Agent' => $fake_agent,
             ],
-            'debug' => $debug,
+            'debug' => $this->debug,
         ]);
-
-        $this->closedRules = array();
     }
 
     /**
@@ -114,33 +122,27 @@ class Voter
 
     /**
      * Close the ports.
-     *
-     * @param OutputInterface $output
      */
-    protected function closePorts(OutputInterface $output)
+    protected function closePorts()
     {
         if (is_array($this->close_ports)) {
             foreach ($this->close_ports as $port) {
                 $rule = 'INPUT -p tcp --destination-port '.$port.' -j '.self::IPTABLES_BLOCKMODE;
                 $blockRule = self::IPTABLES_COMMAND.' -A '.$rule;
                 $this->closedRules[] = $rule;
-                Utils::verbosePrint($output, '<comment>'.$blockRule.'</comment>');
-                Utils::safeSilentExec($blockRule);
+                Utils::safeExec($blockRule, $this->logger);
             }
         }
     }
 
     /**
      * Remove the close-rules.
-     *
-     * @param OutputInterface $output
      */
-    public function reopenPorts(OutputInterface $output)
+    public function reopenPorts()
     {
         foreach ($this->closedRules as $key => $rule) {
             $unblockRule = self::IPTABLES_COMMAND.' -D '.$rule;
-            Utils::safeSilentExec($unblockRule);
-            Utils::verbosePrint($output, '<comment>'.$unblockRule.'</comment>');
+            Utils::safeExec($unblockRule, $this->logger);
             unset($this->closedRules[$key]);
         }
     }
@@ -148,19 +150,19 @@ class Voter
     /**
      * The real things happen here.
      *
-     * @param OutputInterface $output
+     * @param bool|false $noVotesDump Dump the response if no votes are found
      *
      * @return int Votes successfully done
      *
      * @throws VoterException In case of errors
      */
-    public function autovote(OutputInterface $output)
+    public function autovote(bool $noVotesDump = false)
     {
         // Sending the login request without visiting the login page would be too obvious
         $this->client->get(self::ACC_PAGE);
-        $this->delay($output);
+        $this->delay();
 
-        Utils::verbosePrint($output, '<comment>Logging in</comment>');
+        $this->logger->info('Logging in');
         $this->client->post(self::ACC_PAGE, array(
             'form_params' => [
                 'login_id' => $this->username,
@@ -169,33 +171,32 @@ class Voter
             ],
         ));
 
-        $this->delay($output);
+        $this->delay();
         // The webpage somehow also reloads once more after login, we want to mimic that behaviour
-        Utils::verbosePrint($output, '<comment>Check login</comment>');
+        $this->logger->info('Check login');
         $accountResponseBody = Utils::responseBody($this->client->get(self::ACC_PAGE));
         if (empty($accountResponseBody)) {
             throw new VoterException('Login check: Empty response');
         }
         if (!Utils::strContains($accountResponseBody, 'You are logged in as')) {
-            if ($output->isDebug()) {
+            if ($this->debug) {
                 dump($accountResponseBody);
             }
             throw new VoterException('Login failed: Incorrect login data / logged in to game ('.$this->username.':'.$this->password.')');
         }
-        Utils::verbosePrint($output, '<comment>Login seems to be good</comment>');
 
-        $this->delay($output);
-        Utils::verbosePrint($output, '<comment>Init voting</comment>');
-        $this->closePorts($output);
+        $this->delay();
+        $this->logger->info('Init voting');
+        $this->closePorts();
         $voteInitResponseBody = Utils::responseBody($this->client->post('/index.php?site=account&a=vote', array(
             'form_params' => [
                 'chose_character' => (string) $this->char_id,
                 'reset_submit' => '',
             ],
         )));
-        $this->reopenPorts($output);
+        $this->reopenPorts();
 
-        Utils::verbosePrint($output, '<comment>Extracting vote IDs / checking vote count</comment>');
+        $this->logger->info('Extracting vote IDs / checking vote count');
         if (empty($voteInitResponseBody)) {
             throw new VoterException('Vote init: Empty response');
         }
@@ -205,18 +206,17 @@ class Voter
             if (Utils::strContains($voteInitResponseBody, 'You have been detected to be using a proxy')) {
                 throw new VoterException('Rejected because of proxy-check, see README.md');
             }
-            if ($output->isDebug()) {
+            if ($noVotesDump) {
                 dump($voteInitResponseBody);
             }
             throw new VoterException('No possible votes found: On cooldown?');
         }
 
         $voteCount = sizeof($matches[1]);
-        $output->writeln('<info>Found '.$voteCount.' possible votes: '.implode(', ', $matches[1]).'</info>');
+        $this->logger->notice('Found '.$voteCount.' possible votes: '.implode(', ', $matches[1]));
 
-        Utils::verbosePrint($output, '<comment>Starting voting process</comment>');
         foreach ($matches[1] as $match) {
-            $this->delay($output);
+            $this->delay();
             $voteResponse = Utils::responseBody($this->client->post('ajax/vote.php', array(
                 'form_params' => [
                     'vote_num' => $match,
@@ -227,11 +227,11 @@ class Voter
             }
             $voteResponseInt = (int) $voteResponse;
             if ($voteResponseInt == 2) {
-                $output->writeln('<info>Vote '.$match.' gave WP</info>');
+                $this->logger->notice('Vote '.$match.' gave WP');
             } elseif ($voteResponseInt == 3) {
-                $output->writeln('<info>Vote '.$match.' gave Donate-P</info>');
+                $this->logger->notice('Vote '.$match.' gave Donate-P');
             } else {
-                $output->writeln('<error>Vote '.$match.' failed. Response: '.$voteResponse.'</error>');
+                $this->logger->error('Vote '.$match.' failed. Response: '.$voteResponse);
                 --$voteCount;
             }
         }
@@ -241,13 +241,11 @@ class Voter
 
     /**
      * Delay if not in fast mode.
-     *
-     * @param OutputInterface $output Writes an info message
      */
-    protected function delay(OutputInterface $output)
+    protected function delay()
     {
         if (!$this->fast) {
-            Utils::randDelay(self::DELAY_MIN, self::DELAY_MAX, $output);
+            Utils::randDelay(self::DELAY_MIN, self::DELAY_MAX, $this->logger);
         }
     }
 }

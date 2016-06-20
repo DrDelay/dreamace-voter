@@ -19,13 +19,15 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Logger\ConsoleLogger;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class AutoVoteCommand extends Command
 {
     protected function configure()
     {
-        $this->setName('autovote')
+        $this
+            ->setName('autovote')
             ->setDefinition(array(
                 new InputArgument('username', InputArgument::REQUIRED, 'The DreamACE username', null),
                 new InputArgument('password', InputArgument::REQUIRED, 'The DreamACE password', null),
@@ -53,12 +55,14 @@ EOF
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         set_time_limit(0);
+        $logger = new ConsoleLogger($output);
 
         $voter = new Voter(
             $input->getArgument('username'),
             $input->getArgument('password'),
             (int) $input->getArgument('char_id'),
             $input->getArgument('user_agent'),
+            $logger,
             $output->isDebug()
         );
         $voter->setFast((bool) $input->getOption('fast'));
@@ -69,9 +73,9 @@ EOF
         }
 
         try {
-            $result = $voter->autovote($output);
+            $result = $voter->autovote($output->isVerbose());
         } finally {
-            $voter->reopenPorts($output);
+            $voter->reopenPorts();
         }
 
         $output->writeln('<info>'.$result.' successful votes</info>');
