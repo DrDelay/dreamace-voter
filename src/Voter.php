@@ -16,11 +16,12 @@ namespace DrDelay\DreamAceVoter;
 
 use Faker\Factory as FakerFactory;
 use GuzzleHttp\Client;
+use GuzzleHttp\Cookie\FileCookieJar;
 use Psr\Log\LoggerInterface;
 
 class Voter
 {
-    const VERSION = '1.0.1';
+    const VERSION = '1.1.0';
     const DA_WEBSITE = 'http://dreamace.org';
 
     const DELAY_MIN = 2000;
@@ -28,6 +29,7 @@ class Voter
     const ACC_PAGE = '/index.php?site=account';
     const IPTABLES_COMMAND = '/sbin/iptables';
     const IPTABLES_BLOCKMODE = 'REJECT';
+    const COOKIE_JAR = __DIR__.'/cookies.store';
 
     /** @var LoggerInterface */
     protected $logger;
@@ -84,7 +86,7 @@ class Voter
         $this->client = new Client([
             'base_uri' => self::DA_WEBSITE,
             'timeout' => 20.0,
-            'cookies' => true,
+            'cookies' => new FileCookieJar(self::COOKIE_JAR, true),
             'headers' => [
                 'User-Agent' => $fake_agent,
             ],
@@ -158,31 +160,22 @@ class Voter
      */
     public function autovote(bool $noVotesDump = false)
     {
-        // Sending the login request without visiting the login page would be too obvious
-        $this->client->get(self::ACC_PAGE);
-        $this->delay();
-
-        $this->logger->info('Logging in');
-        $this->client->post(self::ACC_PAGE, array(
-            'form_params' => [
-                'login_id' => $this->username,
-                'login_pw' => $this->password,
-                'login_submit' => 'Log in',
-            ],
-        ));
-
-        $this->delay();
-        // The webpage somehow also reloads once more after login, we want to mimic that behaviour
-        $this->logger->info('Check login');
-        $accountResponseBody = Utils::responseBody($this->client->get(self::ACC_PAGE));
-        if (empty($accountResponseBody)) {
-            throw new VoterException('Login check: Empty response');
-        }
-        if (!Utils::strContains($accountResponseBody, 'You are logged in as')) {
-            if ($this->debug) {
-                dump($accountResponseBody);
-            }
-            throw new VoterException('Login failed: Incorrect login data / logged in to game ('.$this->username.':'.$this->password.')');
+        if ($this->checkLogin(true)) {
+            $this->logger->notice('Saved connection still logged in');
+        } else {
+            $this->logger->warning('No logged in connection saved, creating and saving a new one');
+            $this->delay();
+            $this->logger->info('Logging in');
+            $this->client->post(self::ACC_PAGE, array(
+                'form_params' => [
+                    'login_id' => $this->username,
+                    'login_pw' => $this->password,
+                    'login_submit' => 'Log in',
+                ],
+            ));
+            $this->delay();
+            // The webpage somehow also reloads once more after login, we want to mimic that behaviour
+            $this->checkLogin();
         }
 
         $this->delay();
@@ -238,6 +231,35 @@ class Voter
         }
 
         return $voteCount;
+    }
+
+    /**
+     * Check if successfully logged in.
+     *
+     * @param bool|false $soft If set to true an Exception will not be thrown if not logged in
+     *
+     * @return bool Whether the user is logged in
+     *
+     * @throws VoterException In case of errors
+     */
+    protected function checkLogin($soft = false)
+    {
+        $this->logger->info('Check login');
+        $accountResponseBody = Utils::responseBody($this->client->get(self::ACC_PAGE));
+        if (empty($accountResponseBody)) {
+            throw new VoterException('Login check: Empty response');
+        }
+        if (!Utils::strContains($accountResponseBody, 'You are logged in as')) {
+            if ($soft) {
+                return false;
+            }
+            if ($this->debug) {
+                dump($accountResponseBody);
+            }
+            throw new VoterException('Login failed: Incorrect login data / logged in to game ('.$this->username.':'.$this->password.')');
+        }
+
+        return true;
     }
 
     /**

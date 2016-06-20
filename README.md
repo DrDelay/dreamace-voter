@@ -1,4 +1,4 @@
-# dreamace-voter - DreamACE Voter v1.0.1
+# dreamace-voter - DreamACE Voter v1.1.0
 Automates the voting process on [DreamACE](http://dreamace.org).
 This works for now as DreamACE is not using Captchas on their votes.
 Also, this tool doesn't really vote. It just fires requests to `ajax/vote.php`, this is enough to get the reward. The wait-time where it "validates" your vote is just show right now.
