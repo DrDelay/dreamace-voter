@@ -193,6 +193,7 @@ class Voter
                 'chose_character' => (string) $this->char_id,
                 'reset_submit' => '',
             ],
+            'timeout' => 35.0,
         )));
         $this->reopenPorts();
 
