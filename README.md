@@ -21,6 +21,10 @@ DreamACE checks whether some ports are open on the system to determine whether i
 
 You can pass a space-seperated list of ports as the *close_ports* argument (see the cronjob example). If you do so, temporary iptables rules that reject incoming traffic on that port will be added. Of course, this requires the tool to be run as root.
 
+Cookie Store
+------
+The tool saves the login cookie in `./src/cookies.store` for subsequent runs. If you are on a multi-user system you may want to `chmod o-rwx` this file to prevent your session on DreamACE from being hijacked.
+
 Character ID
 ------
 You can get this by inspecting the character-dropdown / viewing page-source on the homepage.
