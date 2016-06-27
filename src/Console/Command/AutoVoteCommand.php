@@ -33,8 +33,12 @@ class AutoVoteCommand extends Command
                 new InputArgument('password', InputArgument::REQUIRED, 'The DreamACE password', null),
                 new InputArgument('char_id', InputArgument::REQUIRED, 'The DreamACE character ID', null),
                 new InputArgument('user_agent', InputArgument::OPTIONAL, 'A custom User-Agent', null),
-                new InputArgument('close_ports', InputArgument::IS_ARRAY | InputArgument::OPTIONAL,
-                    'Add temporary iptables rules for these', null),
+                new InputArgument(
+                    'close_ports',
+                    InputArgument::IS_ARRAY | InputArgument::OPTIONAL,
+                    'Add temporary iptables rules for these',
+                    null
+                ),
                 new InputOption('fast', '', InputOption::VALUE_NONE, 'Skip "human delays"'),
             ))
             ->setDescription('Runs the autovoting')

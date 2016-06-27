@@ -194,8 +194,12 @@ class Voter
         if (empty($voteInitResponseBody)) {
             throw new VoterException('Vote init: Empty response');
         }
-        if (!preg_match_all('/vote_topsite\((\d+)\)/', $voteInitResponseBody, $matches,
-                PREG_PATTERN_ORDER) || empty($matches[1])
+        if (!preg_match_all(
+            '/vote_topsite\((\d+)\)/',
+            $voteInitResponseBody,
+            $matches,
+            PREG_PATTERN_ORDER
+        ) || empty($matches[1])
         ) {
             if (Utils::strContains($voteInitResponseBody, 'You have been detected to be using a proxy')) {
                 throw new VoterException('Rejected because of proxy-check, see README.md');
