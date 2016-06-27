@@ -29,7 +29,7 @@ class Voter
     const ACC_PAGE = '/index.php?site=account';
     const IPTABLES_COMMAND = '/sbin/iptables';
     const IPTABLES_BLOCKMODE = 'REJECT';
-    const TMP_PATH = DIRECTORY_SEPARATOR.'drdelay'.DIRECTORY_SEPARATOR.'dreamace-voter'.DIRECTORY_SEPARATOR;
+    const TMP_PREF = 'dreamace-voter_';
 
     /** @var LoggerInterface */
     protected $logger;
@@ -83,9 +83,9 @@ class Voter
         $this->password = $password;
         $this->char_id = $char_id;
 
-        $this->tmpFile = sys_get_temp_dir().self::TMP_PATH.$this->username;
-        mkdir(dirname($this->tmpFile), 0777, true);
+        $this->tmpFile = sys_get_temp_dir().DIRECTORY_SEPARATOR.self::TMP_PREF.$this->username;
         $this->cookieJar = new FileCookieJar($this->tmpFile, true);
+        touch($this->tmpFile);
         chmod($this->tmpFile, 0640);
 
         if (!$fake_agent) {
