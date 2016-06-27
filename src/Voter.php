@@ -84,6 +84,7 @@ class Voter
         $this->char_id = $char_id;
 
         $this->tmpFile = sys_get_temp_dir().self::TMP_PATH.$this->username;
+        mkdir($this->tmpFile, 0777, true);
         $this->cookieJar = new FileCookieJar($this->tmpFile, true);
         chmod($this->tmpFile, 0640);
 
