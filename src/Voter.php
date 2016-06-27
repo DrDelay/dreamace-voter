@@ -29,13 +29,15 @@ class Voter
     const ACC_PAGE = '/index.php?site=account';
     const IPTABLES_COMMAND = '/sbin/iptables';
     const IPTABLES_BLOCKMODE = 'REJECT';
-    const COOKIE_JAR = __DIR__.'/cookies.store';
+    const TMP_PATH = DIRECTORY_SEPARATOR.'drdelay'.DIRECTORY_SEPARATOR.'dreamace-voter'.DIRECTORY_SEPARATOR;
 
     /** @var LoggerInterface */
     protected $logger;
     /** @var bool */
     protected $debug;
 
+    /** @var string */
+    protected $tmpFile;
     /** @var Client */
     protected $client;
 
@@ -53,6 +55,8 @@ class Voter
 
     /** @var array */
     protected $closedRules = array();
+    /** @var \GuzzleHttp\Cookie\CookieJarInterface */
+    protected $cookieJar;
 
     /**
      * Constructor.
@@ -79,14 +83,23 @@ class Voter
         $this->password = $password;
         $this->char_id = $char_id;
 
+        $this->tmpFile = sys_get_temp_dir().self::TMP_PATH.$this->username;
+        $this->cookieJar = new FileCookieJar($this->tmpFile, true);
+        chmod($this->tmpFile, 0640);
+
         if (!$fake_agent) {
+            $faker = FakerFactory::create();
+            $cookies = $this->cookieJar->toArray();
+            if (!empty($cookies)) {
+                $faker->seed((int) hexdec(substr(sha1(serialize($cookies)), 0, 6)));
+            }
             $fake_agent = FakerFactory::create()->userAgent;
         }
 
         $this->client = new Client([
             'base_uri' => self::DA_WEBSITE,
             'timeout' => 20.0,
-            'cookies' => new FileCookieJar(self::COOKIE_JAR, true),
+            'cookies' => $this->cookieJar,
             'headers' => [
                 'User-Agent' => $fake_agent,
             ],
