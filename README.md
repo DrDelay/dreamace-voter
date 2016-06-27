@@ -1,4 +1,4 @@
-# dreamace-voter - DreamACE Voter v1.1.0
+# dreamace-voter - DreamACE Voter v1.1.1
 Automates the voting process on [DreamACE](http://dreamace.org).
 This works for now as DreamACE is not using Captchas on their votes.
 Also, this tool doesn't really vote. It just fires requests to `ajax/vote.php`, this is enough to get the reward. The wait-time where it "validates" your vote is just show right now.
@@ -20,10 +20,6 @@ Proxy-Check
 DreamACE checks whether some ports are open on the system to determine whether it is a proxy. These ports include the webserver ports (like 80/443), so if you want to run this on a server with a webserver you'll be in trouble.
 
 You can pass a space-seperated list of ports as the *close_ports* argument (see the cronjob example). If you do so, temporary iptables rules that reject incoming traffic on that port will be added. Of course, this requires the tool to be run as root.
-
-Cookie Store
-------
-The tool saves the login cookie in `./src/cookies.store` for subsequent runs. If you are on a multi-user system you may want to `chmod o-rwx` this file to prevent your session on DreamACE from being hijacked.
 
 Character ID
 ------
