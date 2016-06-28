@@ -66,9 +66,9 @@ EOF
             $input->getArgument('password'),
             (int) $input->getArgument('char_id'),
             $input->getArgument('user_agent'),
-            $logger,
             $output->isDebug()
         );
+        $voter->setLogger($logger);
         $voter->setFast((bool) $input->getOption('fast'));
 
         $close_ports = $input->getArgument('close_ports');

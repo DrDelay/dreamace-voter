@@ -17,10 +17,13 @@ namespace DrDelay\DreamAceVoter;
 use Faker\Factory as FakerFactory;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\FileCookieJar;
-use Psr\Log\LoggerInterface;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 
-class Voter
+class Voter implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
+
     const VERSION = '1.1.1';
     const DA_WEBSITE = 'http://dreamace.org';
 
@@ -31,8 +34,6 @@ class Voter
     const IPTABLES_BLOCKMODE = 'REJECT';
     const TMP_PREF = 'dreamace-voter_';
 
-    /** @var LoggerInterface */
-    protected $logger;
     /** @var bool */
     protected $debug;
 
@@ -61,22 +62,19 @@ class Voter
     /**
      * Constructor.
      *
-     * @param string          $username
-     * @param string          $password
-     * @param int             $char_id
-     * @param string|null     $fake_agent If none is specified one is obtained via Faker
-     * @param LoggerInterface $logger
-     * @param bool|false      $debug
+     * @param string      $username
+     * @param string      $password
+     * @param int         $char_id
+     * @param string|null $fake_agent If none is specified one is obtained via Faker
+     * @param bool|false  $debug
      */
     public function __construct(
         string $username,
         string $password,
         int $char_id,
         string $fake_agent = null,
-        LoggerInterface $logger,
         bool $debug = false
     ) {
-        $this->logger = $logger;
         $this->debug = $debug;
 
         $this->username = strtolower($username);
