@@ -21,7 +21,7 @@ use Psr\Log\LoggerInterface;
 
 class Voter
 {
-    const VERSION = '1.1.0';
+    const VERSION = '1.1.1';
     const DA_WEBSITE = 'http://dreamace.org';
 
     const DELAY_MIN = 2000;
@@ -79,7 +79,7 @@ class Voter
         $this->logger = $logger;
         $this->debug = $debug;
 
-        $this->username = $username;
+        $this->username = strtolower($username);
         $this->password = $password;
         $this->char_id = $char_id;
 
@@ -90,11 +90,8 @@ class Voter
 
         if (!$fake_agent) {
             $faker = FakerFactory::create();
-            $cookies = $this->cookieJar->toArray();
-            if (!empty($cookies)) {
-                $faker->seed((int) hexdec(substr(sha1(serialize($cookies)), 0, 6)));
-            }
-            $fake_agent = FakerFactory::create()->userAgent;
+            $faker->seed((int) hexdec(substr(sha1($this->username), 0, 6)));
+            $fake_agent = $faker->userAgent;
         }
 
         $this->client = new Client([
@@ -263,12 +260,22 @@ class Voter
     protected function checkLogin($soft = false)
     {
         $this->logger->info('Check login');
+        $hasCookies = null;
+        if ($soft) {
+            $hasCookies = (bool) $this->cookieJar->count();
+        }
         $accountResponseBody = Utils::responseBody($this->client->get(self::ACC_PAGE));
         if (empty($accountResponseBody)) {
             throw new VoterException('Login check: Empty response');
         }
-        if (!Utils::strContains($accountResponseBody, 'You are logged in as')) {
+        if (!Utils::strContains($accountResponseBody, 'You are logged in as <b>'.$this->username.'</b>')) {
             if ($soft) {
+                if ($hasCookies) {
+                    $this->cookieJar->clearSessionCookies();
+                    $this->delay();
+                    $this->client->get(self::ACC_PAGE);
+                }
+
                 return false;
             }
             if ($this->debug) {
