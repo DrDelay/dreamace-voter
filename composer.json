@@ -3,6 +3,7 @@
     "description": "Automates the voting process on DreamACE",
     "type": "application",
     "license": "MIT",
+    "homepage": "https://github.com/DrDelay/dreamace-voter",
     "authors": [
         {
             "name": "DrDelay",
